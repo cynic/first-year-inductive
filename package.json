@@ -1,12 +1,13 @@
 {
   "dependencies": {
-    "concurrently": "^8.2.2",
     "elm": "^0.19.1-6",
     "elm-test": "^0.19.1-revision12",
     "elm-watch": "^1.1.2",
-    "serve": "^14.2.1"
+    "vite": "^4.5.0",
+    "vite-plugin-elm": "^2.8.0"
   },
   "scripts": {
+    "dev": "vite & npx elm-watch hot",
     "start": "npx concurrently \"npx serve\" \"npx elm-watch hot\""
   }
 }
