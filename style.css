@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
+/* A .square has small text in a square-sized div */
+.square {
+  /* This is in the .flex-column layout */
+  width: 10vw;
+  display: block;
+  padding: 4px;
+  border: 1px solid black;
+  /* darker shadow around each letter to help with readability */
+  margin: 2px;
+}
+
+.square.problem:hover {
+  border: 3px solid black;
+  margin: 0px;
+  cursor: pointer;
+}
+
+.problem {
+  color: white;
+  font-size: 16px;
+}
+
+.category {
+  /* darker shadow around each letter to help with readability */
+  font-size: 18px;
+  font-variant: small-caps;
+  font-weight: bold;
+  height: 2.5em;
+  text-align: center;
+  color: #E6194B;
+}
+
+/* A flexbox layout that one can embed many .squares in, so that they are laid out from top to bottom */
+.flex-updown {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+  height: 100%;
+  /* background-color: rgba(0, 0, 0, 0.05); */
+}
+
+/* A flexbox layout that lays flex-columns out from left to right, 130px is the size of each column, and with gaps between the colums */
+.flex-rightleft {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  align-content: flex-start;
+  /* background-color: rgba(0, 0, 0, 0.05); */
+}

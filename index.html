@@ -1,0 +1,20 @@
+<!-- FILEPATH: /home/cynic/Projects/first-year-inductive/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inductive Sciences Retreat Playground</title>
+  <script src="app.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="myapp"></div>
+  <script>
+    var flags = localStorage.getItem("state");
+    var app = Elm.Main.init({
+      node: document.getElementById('myapp'),
+      flags: flags
+    });
+  </script>
+</body>
+</html>
