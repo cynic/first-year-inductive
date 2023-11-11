@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, div, text)
+import Html exposing (Html, div, text, span)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import String.Extra
@@ -65,7 +65,7 @@ categoryToColor category =
     AcademicLiteracy ->
       "#4363d8" -- Blue
     SubjectSpecificComprehension ->
-      "#f58231" -- Orange
+      "#db5b00" -- Orange
     MentalModel ->
       "#911eb4" -- Purple
     PoorClassBehaviour ->
@@ -118,7 +118,7 @@ defaultProblems =
     "Taking attendance, marking, even tutorials/practicals etc are more difficult"
     ""
     CourseStructure
-    [] [21]
+    [0, 1] [21]
   , Problem -- 3 summary, detail, example, category, prerequisites, solutions
     "Inability / unwillingness to read/absorb for comprehension"
     ""
@@ -452,7 +452,40 @@ viewProblem index problem =
           title problem.detail
       , onClick (ExpandProblem index)
       ]
-      [ Html.text problem.summary
+      [ text problem.summary
+      , div
+        [ class "metrics" ]
+        [ case problem.prerequisites of
+          [] ->
+            text ""
+          prerequisites ->
+            span
+              [ class "prerequisites"
+              , case List.length prerequisites of
+                1 ->
+                  title "To solve this, another problem should be solved first"
+                n ->
+                  title <| "To solve this, " ++ String.fromInt n ++ " other problems must be solved first"
+              ]
+              [ text <| String.fromInt <| List.length prerequisites ]
+        , case problem.solutions of
+          [] ->
+            span
+              [ class "no-solutions"
+              , title "This problem has no solutions!"
+              ]
+              [ text "❌" ]
+          solutions ->
+            span
+              [ class "solutions"
+              , case List.length solutions of
+                1 ->
+                  title "There is 1 possible solution"
+                n ->
+                  title <| "There are " ++ String.fromInt n ++ " possible solutions"
+              ]
+              [ text <| String.fromInt <| List.length solutions ]
+          ]
       ]
 
 -- For each category, create a list of problems that will be laid out by viewProblem

@@ -36,6 +36,52 @@ body {
   color: #E6194B;
 }
 
+.solutions {
+  background-color: #4CAF50; /* Circle color */
+  color: white;   /* Text color */
+}
+
+.prerequisites {
+  background-color: #fffb00; /* Circle color */
+  color: black;   /* Text color */
+}
+
+.solutions, .prerequisites {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 1em;    /* Diameter of the circle */
+  height: 1em;   /* Diameter of the circle */
+  border-radius: 50%;  /* Creates the circular shape */
+  font-size: smaller; /* Adjusts the size of the number */
+  text-align: center;
+  line-height: 1em; /* Aligns text vertically */
+  border: 2px solid black;
+  font-weight: bold;
+  padding: 2px;
+}
+
+.solutions:hover, .prerequisites:hover {
+  opacity: 0.8;
+  border-color: white;
+}
+
+.no-solutions {
+  /* a text-shadow that makes the red stand out against any background */
+  text-shadow: 1px 1px 2px black;
+}
+
+.metrics {
+/* flexbox container holding the .solutions, and beginning on the right */
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  /* background-color: rgba(0, 0, 0, 0.05); */
+}
+
 /* A flexbox layout that one can embed many .squares in, so that they are laid out from top to bottom */
 .flex-updown {
   display: flex;
