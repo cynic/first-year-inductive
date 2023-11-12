@@ -107,15 +107,14 @@ The classes to support this follow:
 }
 
 
-.solution-list {
-  list-style-type: none; /* Removes default list styling */
+.solution-list, .prereq-list {
   padding: 0; /* Removes default padding */
   margin: 0; /* Removes default margin */
   max-height: 500px;
   overflow: scroll;
 }
 
-.solution {
+.solution, .prereq {
   display: flex; /* Enables flexbox layout */
   align-items: flex-start; /* Aligns items to the top */
   margin-bottom: 10px; /* Adds space between list items */
@@ -126,15 +125,16 @@ input[type="checkbox"] {
   margin-right: 10px; /* Adds space between the checkbox and the label */
 }
 
-.solution-text {
+.solution-text, prereq-text {
   flex-grow: 1; /* Allows the text to take up the available space */
 }
+
+
+
 
 .solution-list div.optional-text {
   font-size: 75%;
 }
-
-
 
 .modal h1 {
   font-size: 1.5em;
@@ -157,10 +157,12 @@ input[type="checkbox"] {
 
 .modal ol.solution-list {
   overflow: scroll;
+  list-style-type: square;
 }
 
 .modal ol.solution-list li {
   margin-bottom: 0.5em;
+  display: flex;
 }
 
 .modal ol.solution-list button:hover {
@@ -169,6 +171,7 @@ input[type="checkbox"] {
 
 .modal ol .solution-text {
   margin-left: 0.75ex;
+  flex-grow: 1;
 }
 
 .modal .optional-text {

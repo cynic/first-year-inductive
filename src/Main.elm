@@ -107,9 +107,15 @@ update msg model =
       ({ model | path = [] }, Cmd.none)
     (ChooseSolutions :: prev, GoBack) ->
       ({ model | path = prev }, Cmd.none)
+    (ChoosePrerequisites :: prev, GoBack) ->
+      ({ model | path = prev }, Cmd.none)
     ([ExpandedFullModal _], AddToPath ChooseSolutions) ->
       ({ model | path = ChooseSolutions :: model.path, interactionData = Nothing }, Cmd.none)
+    ([ExpandedFullModal _], AddToPath ChoosePrerequisites) ->
+      ({ model | path = ChoosePrerequisites :: model.path, interactionData = Nothing }, Cmd.none)
     (ChooseSolutions :: _, StringInput SearchBox s) ->
+      ({ model | interactionData = Just (SearchString s) }, Cmd.none)
+    (ChoosePrerequisites :: _, StringInput SearchBox s) ->
       ({ model | interactionData = Just (SearchString s) }, Cmd.none)
     ([ExpandedFullModal index], Unselect (ProblemId id)) ->
       ( unselectProblem model index id, Cmd.none )
@@ -226,6 +232,96 @@ viewScreen inner =
       [ inner ]
     ]
 
+viewChoosePrerequisites : Model -> (Int, Problem) -> Html Msg
+viewChoosePrerequisites model (problemIdx, problem) =
+  -- this is largely the same as viewChooseSolutions
+  -- except that it is for prerequisites.
+  div
+    [ class "modal" ]
+    [ div
+        [ class "modal-header" ]
+        [ div
+          [ class "back-button"
+          , onClick GoBack
+          ]
+          [ text "←" ]
+        , h1
+          []
+          [ text "Choose prerequisites" ]
+        ]
+    , h2
+      []
+      [ text "Problem: "
+      , text problem.summary
+      ]
+    , div
+      [ class "search-bar" ]
+      [ input
+          [ type_ "text"
+          , placeholder "Search…"
+          , onInput <| \s -> StringInput SearchBox s
+          ]
+          [ case model.interactionData of
+            Nothing ->
+              text ""
+            Just (SearchString s) ->
+              text s
+          ]
+
+      ]
+    , div
+      [ class "prereq-list" ]
+      ( List.indexedMap (\i p -> (i, p)) model.problems
+        |> List.filterMap
+          (\(i, prereq) ->
+            case model.interactionData of
+              Nothing ->
+                Just (i, prereq)
+              Just (SearchString s) ->
+                if String.isBlank s then
+                  Just (i, prereq)
+                else
+                  if String.contains (String.toLower s) (String.toLower prereq.summary) || String.contains (String.toLower s) (String.toLower prereq.detail) then
+                    Just (i, prereq)
+                  else
+                    Nothing
+          )
+        |> List.map
+            (\(id, prereq) ->
+              div
+                [ class "prereq"
+                ]
+                [ input
+                    [ type_ "checkbox"
+                    , Html.Attributes.id <| "prereq-" ++ String.fromInt id
+                    , checked <| List.member id problem.prerequisites
+                    , onClick <|
+                        ( if List.member id problem.prerequisites then
+                            Unselect <| ProblemId id
+                          else
+                            Select <| ProblemId id
+                        )
+                    ]
+                    []
+                , label
+                    [ for <| "prereq-" ++ String.fromInt id ]
+                    [ div
+                        [ class "prereq-text"
+                        ]
+                        [ text prereq.summary ]
+                    , if String.isBlank prereq.detail then
+                        text ""
+                      else 
+                        div
+                          [ class "optional-text" ]
+                          [ text prereq.detail ]
+                    ]
+                ]
+            )
+      )
+    ]
+
+
 viewChooseSolutions : Model -> (Int, Problem) -> Html Msg
 viewChooseSolutions model (problemIdx, problem) =
   -- this is a "modal" display
@@ -320,7 +416,7 @@ viewChooseSolutions model (problemIdx, problem) =
         [ class "add-solution-button" ]
         [ button
             [ onClick <| AddToPath <| ChooseSolutions ]
-            [ text "Add solution" ]
+            [ text "Add a completely new solution" ]
         ]
       ]
 
@@ -462,6 +558,10 @@ viewInteractive model =
     ChooseSolutions :: ExpandedFullModal index :: _ ->
       List.getAt index model.problems
       |> Maybe.map (\problem -> viewScreen <| viewChooseSolutions model (index, problem))
+      |> Maybe.withDefault (text "")
+    ChoosePrerequisites :: ExpandedFullModal index :: _ ->
+      List.getAt index model.problems
+      |> Maybe.map (\problem -> viewScreen <| viewChoosePrerequisites model (index, problem))
       |> Maybe.withDefault (text "")
     x ->
       Debug.log "Unhandled interactive view" x
