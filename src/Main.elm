@@ -1,10 +1,11 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, div, text, span)
+import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
-import String.Extra
+import String.Extra as String
+import List.Extra as List
 import Json.Decode as D
 import Json.Encode as E
 
@@ -42,17 +43,52 @@ type alias Problem =
     , solutions: List Int
     }
 
+type InteractionData
+  = SearchString String
+
 type alias Solution =
   { summary : String
   , detail : String -- OR comment
   , implementation : String
   }
 
+type Selection
+  = ProblemId Int
+  | SolutionId Int
+
+type StateMachine
+  = ExpandedFullModal Int
+  | ChooseSolutions
+  | AddNewSolution Solution
+  | ChoosePrerequisites
+  | AddNewProblem Problem
+  | EditSolution Int
+  | EditProblem Int
+  | ShowSolution Int
+
 -- Define the Model
 type alias Model =
     { problems : List Problem
-    , expandedIndex : Maybe Int
+    , solutions: List Solution
+    , path : List StateMachine
+    , interactionData : InteractionData
     }
+
+type StringLocation
+  = Summary
+  | Detail
+  | Example
+  | Implementation
+
+-- Define Msg type for future updates
+type Msg
+    = Select Selection
+    | Unselect Selection
+    | StringInput StringLocation String
+    | ChooseCategory Category
+    | GoBack
+    | SwapListIndices Int Int
+    | AddToPath StateMachine
 
 -- Function to map category to color
 categoryToColor : Category -> String
@@ -426,19 +462,22 @@ defaultSolutions =
 initialModel : Model
 initialModel =
     { problems = defaultProblems
-    , expandedIndex = Nothing
+    , solutions = defaultSolutions
+    , path = []
     }
-
--- Define Msg type for future updates
-type Msg
-    = ExpandProblem Int
 
 -- Define the Update function
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    case msg of
-        ExpandProblem index ->
-          (model, Cmd.none)
+  case (model.path, msg) of
+    ([], AddToPath component) ->
+      ({ model | path = component :: model.path }, Cmd.none)
+    ([ExpandedFullModal _], GoBack) ->
+      ({ model | path = [] }, Cmd.none)
+    x ->
+      Debug.log "Unhandled/unexpected message" (x, msg)
+      |> (\_ -> (model, Cmd.none))
+
 -- Define the View function for a single problem
 viewProblem : Int -> Problem -> Html Msg
 viewProblem index problem =
@@ -446,11 +485,11 @@ viewProblem index problem =
       [ class "square"
       , class "problem"
       , style "backgroundColor" <| categoryToColor problem.category
-      , if String.Extra.isBlank problem.detail then
+      , if String.isBlank problem.detail then
           class "no-detail"
         else
           title problem.detail
-      , onClick (ExpandProblem index)
+      , onClick (AddToPath <| ExpandedFullModal index)
       ]
       [ text problem.summary
       , div
@@ -500,17 +539,150 @@ viewCategory category problems =
         ]
         [ Html.text <| categoryName category ]
       ) ::
-      ( List.filter (\p -> p.category == category) problems
-        |> List.indexedMap viewProblem
+      ( List.indexedMap (\i p -> (i, p)) problems
+        |> List.filter (\(i, p) -> p.category == category)
+        |> List.map (\(i, p) -> viewProblem i p)
       ))
 
 -- Define the View function for the entire model
 view : Model -> Html Msg
 view model =
-    div
-      [ class "flex-rightleft"
+  div
+    []
+    [ div
+        [ class "flex-rightleft"
+        ]
+        (List.map (\c -> viewCategory c model.problems) allCategories)
+    , viewInteractive model
+    ]
+
+viewScreen : Html Msg -> Html Msg
+viewScreen inner =
+  div
+    []
+    [ div
+      [ class "screen-overlay" ]
+      [ inner ]
+    ]
+
+viewFullModal : Model -> Problem -> Html Msg
+viewFullModal model problem =
+  div
+    [ class "modal" ]
+    [ div
+        [ class "modal-header" ]
+        [ div
+          [ class "back-button"
+          , onClick GoBack
+          ]
+          [ text "←" ]
+        , h1
+          []
+          [ text problem.summary ]
+        ]
+      , p
+        [ class "optional-text"
+        ]
+        [ text problem.detail ]
+      , case List.filterMap (\i -> List.getAt i model.problems |> Maybe.map (\p -> (i, p))) problem.prerequisites of
+        [] ->
+          div
+            []
+            [ text "If this problem cannot be solved without solving another problem first, "
+            , button
+                [ onClick <| AddToPath ChoosePrerequisites ]
+                [ text "click here" ]
+            , text " to add a prerequisite."
+            ]
+        prerequisites ->
+          div
+            []
+            [ h1
+                []
+                [ text "Impossible / v.difficult to solve without…" ]
+            , ul
+                []
+                ( List.map
+                  (\(i, prereq) ->
+                    li
+                      []
+                      [ text prereq.summary ]
+                  )
+                  prerequisites
+                )
+            , div
+                []
+                [ button
+                  [ onClick <| AddToPath ChoosePrerequisites ]
+                  [ text "Add prerequisite" ]
+                ]
+            ]
+      , case List.filterMap (\i -> List.getAt i model.solutions |> Maybe.map (\s -> (i, s))) problem.solutions of
+        [] ->
+          p
+            []
+            [ text "No solution yet; "
+            , button
+                [ onClick <| AddToPath ChooseSolutions ]
+                [ text "choose some" ]
+            , text "."
+            ]
+        solutions ->
+          div
+            []
+            [ h2
+                []
+                [ text "Solutions" ]
+            , ol
+                [ class "solution-list" ]
+                ( List.indexedMap
+                  (\listIdx (i, solution) ->
+                    li
+                      []
+                      [ if listIdx == 0 then
+                          button [] []
+                        else
+                          button [ onClick <| SwapListIndices (listIdx-1) listIdx ] [ text "▲" ]
+                      , if listIdx == List.length solutions - 1 then
+                          button [] []
+                        else
+                          button [ onClick <| SwapListIndices listIdx (listIdx+1) ] [ text "▼" ]
+                      ,  span
+                          [ class "solution-text" ]
+                          [ text solution.summary ]
+                      , text " "
+                      , button
+                          [ onClick <| Unselect <| ProblemId i
+                          , class "unselect-x"
+                          ]
+                          [ text "❌" ]
+                      ]
+                  )
+                  solutions
+                )
+            , div
+                []
+                [ button
+                  [ onClick <| AddToPath ChooseSolutions ]
+                  [ text "Add solution" ]
+                ]
+            ]
       ]
-      (List.map (\c -> viewCategory c model.problems) allCategories)
+  
+
+-- The interactive parts of the view
+viewInteractive : Model -> Html Msg
+viewInteractive model =
+  case model.path of
+    [] ->
+      text ""
+    [ExpandedFullModal index] ->
+      List.getAt index model.problems
+      |> Maybe.map (\problem -> viewScreen <| viewFullModal model problem)
+      |> Maybe.withDefault (text "")
+    x ->
+      Debug.log "Unhandled interactive view" x
+      |> (\_ -> text "")
 
 -- Define the Subscriptions function
 subscriptions : Model -> Sub Msg
