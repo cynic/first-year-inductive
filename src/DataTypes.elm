@@ -49,13 +49,11 @@ type Selection
   | SolutionId Int
 
 type StateMachine
-  = ExpandedFullModal Int
-  | ChooseSolutions
-  | AddNewSolution Solution
-  | ChoosePrerequisites
-  | AddNewProblem Problem
+  = ExpandedFullModal Int -- ✅
+  | ChooseSolutions -- ✅
+  | ChoosePrerequisites -- ✅
   | EditSolution Int
-  | EditProblem Int
+  | EditProblem Int -- ✅
   | ShowSolution Int
 
 -- Define the Model
@@ -75,13 +73,15 @@ type StringLocation
 
 -- Define Msg type for future updates
 type Msg
-    = Select Selection
-    | Unselect Selection
-    | StringInput StringLocation String
-    | ChooseCategory Category
-    | GoBack
-    | SwapListIndices Int Int
-    | AddToPath StateMachine
+  = Select Selection
+  | Unselect Selection
+  | StringInput StringLocation String
+  | ChooseCategory Category
+  | GoBack
+  | SwapListIndices Int Int
+  | AddToPath StateMachine
+  | AddNewSolution Solution
+  | AddNewProblem Problem
 
 -- Function to map category to color
 categoryToColor : Category -> String

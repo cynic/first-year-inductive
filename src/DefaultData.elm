@@ -21,7 +21,7 @@ defaultProblems =
     "Taking attendance, marking, even tutorials/practicals etc are more difficult"
     ""
     CourseStructure
-    [0, 1] [21]
+    [] [21]
   , Problem -- 3 summary, detail, example, category, prerequisites, solutions
     "Inability / unwillingness to read/absorb for comprehension"
     ""

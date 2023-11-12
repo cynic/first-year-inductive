@@ -112,6 +112,9 @@ The classes to support this follow:
   margin: 0; /* Removes default margin */
   max-height: 500px;
   overflow: scroll;
+  /* scrollbar position should be on outside, not inside */
+  scrollbar-width: thin;
+  scrollbar-color: #0003 #0000;
 }
 
 .solution, .prereq {
@@ -129,7 +132,9 @@ input[type="checkbox"] {
   flex-grow: 1; /* Allows the text to take up the available space */
 }
 
-
+.solution .icon-button:last-child {
+  margin-left: auto;
+}
 
 
 .solution-list div.optional-text {
@@ -145,7 +150,44 @@ input[type="checkbox"] {
   font-size: 1.2em;
 }
 
-.modal ol.solution-list button {
+.icon-button {
+  margin-right: 2px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;  
+  font-size: 100%;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+.large {
+  font-size: 150%;
+}
+
+.icon-button.small {
+  font-size: 60%;
+  padding: 0;
+}
+
+.icon-button.small:hover {
+  background-color: transparent;
+  color: red;
+}
+
+.icon-button:hover {
+  background-color: #0003;
+  /* do a transition over 0.2s */
+  transition: background-color 0.4s;
+}
+
+/* .modal ol.solution-list button {
   margin-right: 2px;
   padding: 0;
   font-size: 60%;
@@ -153,11 +195,21 @@ input[type="checkbox"] {
   border: none;
   cursor: pointer;
   width: 1.5ex;
-}
+} */
 
 .modal ol.solution-list {
   overflow: scroll;
-  list-style-type: square;
+}
+
+input[type="text"] {
+  width: 100%;
+}
+
+textarea {
+  min-width: 100%;
+  max-width: 100%;
+  min-height: 4em;
+  font-family: inherit;
 }
 
 .modal ol.solution-list li {

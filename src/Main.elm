@@ -97,18 +97,66 @@ selectSolution model problemIdx solutionId =
           model.problems
   }
 
+inProblem : Model -> Int -> (Problem -> Problem) -> Model
+inProblem model problemIdx f =
+  { model
+    | problems =
+        List.updateAt problemIdx f model.problems
+  }
+
 -- Define the Update function
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case Debug.log "MSG" (model.path, msg) of
     ([], AddToPath component) ->
       ({ model | path = component :: model.path }, Cmd.none)
+    ([], AddNewProblem problem) ->
+      ( { model
+        | problems = model.problems ++ [problem]
+        , path = EditProblem (List.length model.problems) :: model.path
+        }
+      , Cmd.none
+      )
+    ([ExpandedFullModal _], AddToPath (EditSolution idx)) ->
+      ({ model | path = EditSolution idx :: model.path }, Cmd.none)
+    ([ExpandedFullModal _], AddToPath (EditProblem idx)) ->
+      ({ model | path = EditProblem idx :: model.path }, Cmd.none)
+    (ChooseSolutions :: _, AddToPath (EditSolution idx)) ->
+      ({ model | path = EditSolution idx :: model.path }, Cmd.none)
     ([ExpandedFullModal _], GoBack) ->
       ({ model | path = [] }, Cmd.none)
     (ChooseSolutions :: prev, GoBack) ->
       ({ model | path = prev }, Cmd.none)
     (ChoosePrerequisites :: prev, GoBack) ->
       ({ model | path = prev }, Cmd.none)
+    (EditProblem _ :: prev, GoBack) ->
+      ({ model | path = prev }, Cmd.none)
+    (EditProblem index :: _, StringInput Summary s) ->
+      ( inProblem model index (\problem -> { problem | summary = s })
+      , Cmd.none
+      )
+    (EditProblem index :: _, StringInput Detail s) ->
+      ( inProblem model index (\problem -> { problem | detail = s })
+      , Cmd.none
+      )
+    (EditProblem index :: _, StringInput Example s) ->
+      ( inProblem model index (\problem -> { problem | example = s })
+      , Cmd.none
+      )
+    (EditSolution _ :: prev, GoBack) ->
+      ({ model | path = prev }, Cmd.none)
+    (EditSolution index :: _, StringInput Summary s) ->
+      ( { model | solutions = List.updateAt index (\solution -> { solution | summary = s }) model.solutions }
+      , Cmd.none
+      )
+    (EditSolution index :: _, StringInput Detail s) ->
+      ( { model | solutions = List.updateAt index (\solution -> { solution | detail = s }) model.solutions }
+      , Cmd.none
+      )
+    (EditSolution index :: _, StringInput Implementation s) ->
+      ( { model | solutions = List.updateAt index (\solution -> { solution | implementation = s }) model.solutions }
+      , Cmd.none
+      )
     ([ExpandedFullModal _], AddToPath ChooseSolutions) ->
       ({ model | path = ChooseSolutions :: model.path, interactionData = Nothing }, Cmd.none)
     ([ExpandedFullModal _], AddToPath ChoosePrerequisites) ->
@@ -129,6 +177,13 @@ update msg model =
       ( selectProblem model index id, Cmd.none )
     (ChoosePrerequisites :: ExpandedFullModal index :: _, Unselect (ProblemId id)) ->
       ( unselectProblem model index id, Cmd.none )
+    (ChooseSolutions :: _, AddNewSolution soln) ->
+      ( { model
+        | solutions = model.solutions ++ [soln]
+        , path = EditSolution (List.length model.solutions) :: model.path
+        }
+      , Cmd.none
+      )
     ([ExpandedFullModal index], SwapListIndices i j) ->
       -- this is swapping the selected solution indices
       ( { model
@@ -144,6 +199,111 @@ update msg model =
     x ->
       Debug.log "Unhandled/unexpected message" (x, msg)
       |> (\_ -> (model, Cmd.none))
+
+viewEditSolution : Solution -> Html Msg
+viewEditSolution solution =
+  -- The "Edit Solution" screen is a modal display
+  -- The things to edit are:
+  -- - summary (string, via input type text)
+  -- - detail (string, via textarea)
+  -- implementation (string, via textarea)
+  -- And that's all.  There is also a "back" button at the top.
+  div
+    [ class "modal" ]
+    [ div
+        [ class "modal-header" ]
+        [ div
+          [ class "back-button"
+          , onClick GoBack
+          ]
+          [ text "←" ]
+        , h1
+          []
+          [ text "Edit solution" ]
+        ]
+    , div
+        []
+        [ h2
+            []
+            [ text "Summary" ]
+        , input
+            [ placeholder "Summary"
+            , type_ "text"
+            , onInput <| (StringInput Summary)
+            , value solution.summary
+            ]
+            []
+        , h2
+            []
+            [ text "Detail" ]
+        , textarea
+            [ placeholder "Detail"
+            , onInput <| (StringInput Detail)
+            ]
+            [ text solution.detail ]
+        , h2
+            []
+            [ text "Implementation" ]
+        , textarea
+            [ placeholder "Implementation"
+            , onInput <| (StringInput Implementation)
+            ]
+            [ text solution.implementation ]
+        ]
+    ]
+
+viewEditProblem : Problem -> Html Msg
+viewEditProblem problem =
+  -- The "Edit Problem" screen is a modal display
+  -- The things to edit are:
+  -- - summary (string)
+  -- - detail (string)
+  -- - example (string)
+  -- And that's all.  There is also a "back" button at the top.
+  div
+    [ class "modal" ]
+    [ div
+        [ class "modal-header" ]
+        [ div
+          [ class "back-button"
+          , onClick GoBack
+          ]
+          [ text "←" ]
+        , h1
+          []
+          [ text "Edit problem" ]
+        ]
+    , div
+        []
+        [ h2
+            []
+            [ text "Summary" ]
+        , input
+            [ placeholder "Summary"
+            , type_ "text"
+            , onInput <| (StringInput Summary)
+            , value problem.summary
+            ]
+            []
+        , h2
+            []
+            [ text "Detail" ]
+        , textarea
+            [ placeholder "Detail"
+            , onInput <| (StringInput Detail)
+            ]
+            [ text problem.detail ]
+        , h2
+            []
+            [ text "Examples" ]
+        , text "To make this clear and unambiguous, put in some examples that you've seen of this at the University"
+        , textarea
+            [ placeholder "Examples"
+            , onInput <| (StringInput Example)
+            ]
+            [ text problem.example ]
+        ]
+    ]
 
 -- Define the View function for a single problem
 viewProblem : Int -> Problem -> Html Msg
@@ -204,7 +364,22 @@ viewCategory category problems =
         , class "category"
         , style "color" <| categoryToColor category
         ]
-        [ Html.text <| categoryName category ]
+        [ text <| categoryName category
+        , text " "
+        , button
+            [ class "add-new-problem"
+            , title "Add a new problem in this category"
+            , onClick <| AddNewProblem
+                ( Problem
+                  "New problem"
+                  ""
+                  ""
+                  category
+                  [] []
+                )
+            ]
+            [ text "➕" ]
+        ]
       ) ::
       ( List.indexedMap (\i p -> (i, p)) problems
         |> List.filter (\(i, p) -> p.category == category)
@@ -409,19 +584,31 @@ viewChooseSolutions model (problemIdx, problem) =
                           [ class "optional-text" ]
                           [ text solution.detail ]
                     ]
+                , button
+                    [ onClick <| AddToPath <| EditSolution id
+                    , class "icon-button"
+                    , title "Edit this solution"
+                    ]
+                    [ text "🖊" ]
                 ]
             )
       )
       , div
         [ class "add-solution-button" ]
         [ button
-            [ onClick <| AddToPath <| ChooseSolutions ]
+            [ onClick <| AddNewSolution
+                ( Solution
+                  "New solution"
+                  ""
+                  ""
+                )
+            ]
             [ text "Add a completely new solution" ]
         ]
       ]
 
-viewFullModal : Model -> Problem -> Html Msg
-viewFullModal model problem =
+viewFullModal : Model -> (Int, Problem) -> Html Msg
+viewFullModal model (problemIdx, problem) =
   div
     [ class "modal" ]
     [ div
@@ -434,6 +621,16 @@ viewFullModal model problem =
         , h1
           []
           [ text problem.summary ]
+        , span
+            []
+            [ button
+                [ onClick <| AddToPath <| EditProblem problemIdx
+                , class "icon-button"
+                , class "large"
+                , title "Edit this problem"
+                ]
+                [ text "🖊" ]
+            ]
         ]
       , p
         [ class "optional-text"
@@ -510,13 +707,13 @@ viewFullModal model problem =
                     li
                       []
                       [ if listIdx == 0 then
-                          button [] []
+                          button [ class "invisible icon-button small" ] [ text "▲" ]
                         else
-                          button [ onClick <| SwapListIndices (listIdx-1) listIdx ] [ text "▲" ]
+                          button [ class "icon-button small", onClick <| SwapListIndices (listIdx-1) listIdx ] [ text "▲" ]
                       , if listIdx == List.length solutions - 1 then
-                          button [] []
+                          button [ class "invisible icon-button small" ] [ text "▼" ]
                         else
-                          button [ onClick <| SwapListIndices listIdx (listIdx+1) ] [ text "▼" ]
+                          button [ class "icon-button small", onClick <| SwapListIndices listIdx (listIdx+1) ] [ text "▼" ]
                       ,  span
                           [ class "solution-text"
                           , if String.isBlank solution.detail then
@@ -528,7 +725,7 @@ viewFullModal model problem =
                       , text " "
                       , button
                           [ onClick <| Unselect <| SolutionId i
-                          , class "unselect-x"
+                          , class "unselect-x icon-button small"
                           ]
                           [ text "❌" ]
                       ]
@@ -553,7 +750,7 @@ viewInteractive model =
       text ""
     [ExpandedFullModal index] ->
       List.getAt index model.problems
-      |> Maybe.map (\problem -> viewScreen <| viewFullModal model problem)
+      |> Maybe.map (\problem -> viewScreen <| viewFullModal model (index, problem))
       |> Maybe.withDefault (text "")
     ChooseSolutions :: ExpandedFullModal index :: _ ->
       List.getAt index model.problems
@@ -562,6 +759,14 @@ viewInteractive model =
     ChoosePrerequisites :: ExpandedFullModal index :: _ ->
       List.getAt index model.problems
       |> Maybe.map (\problem -> viewScreen <| viewChoosePrerequisites model (index, problem))
+      |> Maybe.withDefault (text "")
+    EditProblem index :: _ ->
+      List.getAt index model.problems
+      |> Maybe.map (\problem -> viewScreen <| viewEditProblem problem)
+      |> Maybe.withDefault (text "")
+    EditSolution index :: _ ->
+      List.getAt index model.solutions
+      |> Maybe.map (\solution -> viewScreen <| viewEditSolution solution)
       |> Maybe.withDefault (text "")
     x ->
       Debug.log "Unhandled interactive view" x
