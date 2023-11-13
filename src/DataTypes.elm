@@ -55,9 +55,9 @@ type StateMachine
   = ExpandedFullModal Int -- ✅
   | ChooseSolutions -- ✅
   | ChoosePrerequisites -- ✅
-  | EditSolution Int
+  | EditSolution Int -- ✅
   | EditProblem Int -- ✅
-  | ShowSolution Int
+  | ShowSolution Int -- ✅
 
 -- Define the Model
 type alias Model =
@@ -86,6 +86,7 @@ type Msg
   | AddNewSolution Solution
   | AddNewProblem Problem
   | Load String
+  | Delete
   | NoOp
 
 -- Function to map category to color

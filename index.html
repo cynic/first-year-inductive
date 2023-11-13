@@ -59,6 +59,9 @@
   <div>
     <button onclick="loadFromUser()">Import file</button>
     <button onclick="_export()">Export file</button>
+    <button onclick="window.localStorage.clear(); window.location.reload()" class="warning-irrevocable" title="Reset the data completely, erasing all changes that you've made">
+      Reset
+    </button>
   </div>
 </body>
 </html>

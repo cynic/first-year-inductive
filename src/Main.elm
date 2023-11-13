@@ -11,6 +11,8 @@ import Time
 import Task
 import LocalStorage exposing (save)
 import Platform.Sub as Sub
+import Browser.Events
+import Json.Decode
 
 -- Define the initial model
 initialModel : Model
@@ -20,40 +22,6 @@ initialModel =
     , path = []
     , interactionData = Nothing
     }
-
--- toggleProblem : Model -> Int -> Int -> Model
--- toggleProblem model problemIdx problemId =
---   { model
---     | problems =
---         List.updateAt index
---           (\problem ->
---             { problem
---             | prerequisites =
---                 if List.member problemId problem.prerequisites then
---                   List.remove id  problem.prerequisites
---                 else
---                   problemId :: problem.prerequisites
---             }
---           )
---           model.problems
---   }
-
--- toggleSolution : Model -> Int -> Int -> Model
--- toggleSolution model problemIdx solutionId =
---   { model
---     | problems =
---         List.updateAt index
---           (\problem ->
---             { problem
---             | solutions =
---                 if List.member solutionId problem.solutions then
---                   List.remove id problem.solutions
---                 else
---                   solutionId :: problem.solutions
---             }
---           )
---           model.problems
---   }
 
 unselectProblem : Model -> Int -> Int -> Model
 unselectProblem model problemIdx problemId =
@@ -110,6 +78,8 @@ inProblem model problemIdx f =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case Debug.log "MSG" (model.path, msg) of
+    (_, NoOp) ->
+      (model, Cmd.none)
     (_, Load s) ->
       case decodeModelFromString s of
         Ok m ->
@@ -125,6 +95,46 @@ update msg model =
         }
       , Cmd.none
       )
+    (_, AddToPath (ShowSolution idx)) ->
+      ({ model | path = ShowSolution idx :: model.path }, Cmd.none)
+    (EditProblem idx :: _, Delete) ->
+      let
+        newModel =
+          { model
+          | problems =
+              List.removeAt idx model.problems
+              |> List.map
+                (\problem ->
+                  { problem
+                  | prerequisites =
+                      List.filter (\id -> id /= idx) problem.prerequisites
+                      |> List.map (\id -> if id > idx then id - 1 else id)
+                  }
+                )
+          , path = []
+          }
+      in
+        (newModel, save newModel)
+    (EditSolution idx :: rest, Delete) ->
+      let
+        newModel =
+          { model
+          | solutions =
+              List.removeAt idx model.solutions
+          , problems =
+              List.map
+                (\problem ->
+                  { problem
+                  | solutions =
+                      List.filter (\id -> id /= idx) problem.solutions
+                      |> List.map (\id -> if id > idx then id - 1 else id)
+                  }
+                )
+                model.problems
+          , path = rest
+          }
+      in
+        (newModel, save newModel)
     ([ExpandedFullModal _], AddToPath (EditSolution idx)) ->
       ({ model | path = EditSolution idx :: model.path }, Cmd.none)
     ([ExpandedFullModal _], AddToPath (EditProblem idx)) ->
@@ -153,6 +163,8 @@ update msg model =
       )
     (EditSolution _ :: prev, GoBack) ->
       ({ model | path = prev }, save model)
+    (ShowSolution _ :: prev, GoBack) ->
+      ({ model | path = prev }, Cmd.none)
     (EditSolution index :: _, StringInput Summary s) ->
       ( { model | solutions = List.updateAt index (\solution -> { solution | summary = s }) model.solutions }
       , Cmd.none
@@ -208,6 +220,41 @@ update msg model =
       Debug.log "Unhandled/unexpected message" (x, msg)
       |> (\_ -> (model, Cmd.none))
 
+viewSolution : Solution -> Html Msg
+viewSolution solution =
+  -- A solution has a summary, a detail, and an implementation.
+  -- All of these are strings.
+  -- Here we are just viewing each of them, in a modal display.
+  div
+    [ class "modal" ]
+    [ div
+        [ class "modal-header" ]
+        [ div
+          [ class "back-button"
+          , onClick GoBack
+          ]
+          [ text "←" ]
+        , h1
+          []
+          [ text solution.summary ]
+        ]
+    , div
+        []
+        [ h2
+            []
+            [ text "Summary" ]
+        , text solution.summary
+        , h2
+            []
+            [ text "Details / comments" ]
+        , text solution.detail
+        , h2
+            []
+            [ text "Implementation" ]
+        , text solution.implementation
+        ]
+    ]
+
 viewEditSolution : Solution -> Html Msg
 viewEditSolution solution =
   -- The "Edit Solution" screen is a modal display
@@ -243,9 +290,9 @@ viewEditSolution solution =
             []
         , h2
             []
-            [ text "Detail" ]
+            [ text "Details / comments" ]
         , textarea
-            [ placeholder "Detail"
+            [ placeholder "Details / comments"
             , onInput <| (StringInput Detail)
             ]
             [ text solution.detail ]
@@ -258,6 +305,15 @@ viewEditSolution solution =
             ]
             [ text solution.implementation ]
         ]
+        , div
+            [ class "modal-footer" ]
+            [ button
+                [ class "warning-irrevocable"
+                , onClick Delete
+                ]
+                [ text "Delete solution" ]
+            , text " ⚠ WARNING: Deletion of solutions is FINAL and IRREVOCABLE!"
+            ]
     ]
 
 viewEditProblem : Problem -> Html Msg
@@ -295,9 +351,9 @@ viewEditProblem problem =
             []
         , h2
             []
-            [ text "Detail" ]
+            [ text "Details / comments" ]
         , textarea
-            [ placeholder "Detail"
+            [ placeholder "Details / comments"
             , onInput <| (StringInput Detail)
             ]
             [ text problem.detail ]
@@ -311,6 +367,15 @@ viewEditProblem problem =
             ]
             [ text problem.example ]
         ]
+        , div
+            [ class "modal-footer" ]
+            [ button
+                [ class "warning-irrevocable"
+                , onClick Delete
+                ]
+                [ text "Delete problem" ]
+            , text " ⚠ WARNING: Deletion of problems is FINAL and IRREVOCABLE!"
+            ]
     ]
 
 -- Define the View function for a single problem
@@ -348,7 +413,7 @@ viewProblem index problem =
               [ class "no-solutions"
               , title "This problem has no solutions!"
               ]
-              [ text "❌" ]
+              [ text "🚫" ]
           solutions ->
             span
               [ class "solutions"
@@ -457,17 +522,20 @@ viewChoosePrerequisites model (problemIdx, problem) =
       ( List.indexedMap (\i p -> (i, p)) model.problems
         |> List.filterMap
           (\(i, prereq) ->
-            case model.interactionData of
-              Nothing ->
-                Just (i, prereq)
-              Just (SearchString s) ->
-                if String.isBlank s then
+            if i == problemIdx then
+              Nothing
+            else
+              case model.interactionData of
+                Nothing ->
                   Just (i, prereq)
-                else
-                  if String.contains (String.toLower s) (String.toLower prereq.summary) || String.contains (String.toLower s) (String.toLower prereq.detail) then
+                Just (SearchString s) ->
+                  if String.isBlank s then
                     Just (i, prereq)
                   else
-                    Nothing
+                    if String.contains (String.toLower s) (String.toLower prereq.summary) || String.contains (String.toLower s) (String.toLower prereq.detail) then
+                      Just (i, prereq)
+                    else
+                      Nothing
           )
         |> List.map
             (\(id, prereq) ->
@@ -657,30 +725,33 @@ viewFullModal model (problemIdx, problem) =
         prerequisites ->
           div
             []
-            [ h1
+            [ h2
                 []
-                [ text "Impossible / v.difficult to solve without…" ]
+                [ text "Impossible / v.difficult to solve without a solution for:" ]
             , ul
-                []
+                [ class "prereq-list" ]
                 ( List.map
                   (\(i, prereq) ->
                     li
                       []
-                      [ span
-                          [ class "prereq-text"
-                          , if String.isBlank prereq.detail then
-                              class ""
-                            else
-                              title prereq.detail
-                          ]
-                          [ text prereq.summary ]
-                      , text " "
-                      , button
-                          [ onClick <| Unselect <| ProblemId i
-                          , class "unselect-x"
-                          ]
-                          [ text "❌" ]
+                      [ div
+                          [ class "item-content" ]
+                          [ span
+                              [ class "prereq-text"
+                              , if String.isBlank prereq.detail then
+                                  class ""
+                                else
+                                  title prereq.detail
+                              ]
+                              [ text prereq.summary ]
+                          , text " "
+                          , button
+                              [ onClick <| Unselect <| ProblemId i
+                              , class "unselect-x icon-button small"
+                              ]
+                              [ text "❌" ]
 
+                          ]
                       ]
                   )
                   prerequisites
@@ -714,28 +785,38 @@ viewFullModal model (problemIdx, problem) =
                   (\listIdx (i, solution) ->
                     li
                       []
-                      [ if listIdx == 0 then
-                          button [ class "invisible icon-button small" ] [ text "▲" ]
-                        else
-                          button [ class "icon-button small", onClick <| SwapListIndices (listIdx-1) listIdx ] [ text "▲" ]
-                      , if listIdx == List.length solutions - 1 then
-                          button [ class "invisible icon-button small" ] [ text "▼" ]
-                        else
-                          button [ class "icon-button small", onClick <| SwapListIndices listIdx (listIdx+1) ] [ text "▼" ]
-                      ,  span
-                          [ class "solution-text"
-                          , if String.isBlank solution.detail then
-                              class ""
+                      [ div
+                          [ class "item-content" ]
+                          [ if listIdx == 0 then
+                              button [ class "invisible icon-button small up" ] [ text "▲" ]
                             else
-                              title solution.detail
+                              button [ class "icon-button small up", onClick <| SwapListIndices (listIdx-1) listIdx ] [ text "▲" ]
+                          , if listIdx == List.length solutions - 1 then
+                              button [ class "invisible icon-button small down" ] [ text "▼" ]
+                            else
+                              button [ class "icon-button small down", onClick <| SwapListIndices listIdx (listIdx+1) ] [ text "▼" ]
+                          ,  span
+                              [ class "solution-text"
+                              , if String.isBlank solution.detail then
+                                  class ""
+                                else
+                                  title solution.detail
+                              , onClick <| AddToPath <| ShowSolution i
+                              , style "cursor" "pointer"
+                              ]
+                              [ text solution.summary ]
+                          , text " "
+                          , button
+                              [ onClick <| AddToPath <| EditSolution i
+                              , class "icon-button small"
+                              ]
+                              [ text "🖊" ]
+                          , button
+                              [ onClick <| Unselect <| SolutionId i
+                              , class "unselect-x icon-button small"
+                              ]
+                              [ text "❌" ]
                           ]
-                          [ text solution.summary ]
-                      , text " "
-                      , button
-                          [ onClick <| Unselect <| SolutionId i
-                          , class "unselect-x icon-button small"
-                          ]
-                          [ text "❌" ]
                       ]
                   )
                   solutions
@@ -776,6 +857,10 @@ viewInteractive model =
       List.getAt index model.solutions
       |> Maybe.map (\solution -> viewScreen <| viewEditSolution solution)
       |> Maybe.withDefault (text "")
+    ShowSolution index :: _ ->
+      List.getAt index model.solutions
+      |> Maybe.map (\solution -> viewScreen <| viewSolution solution)
+      |> Maybe.withDefault (text "")
     x ->
       Debug.log "Unhandled interactive view" x
       |> (\_ -> text "")
@@ -784,7 +869,14 @@ viewInteractive model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
   -- A subscription for updating the time every 15 seconds
-  LocalStorage.loadFromUser Load
+  Sub.batch
+    [ LocalStorage.loadFromUser Load
+    , Browser.Events.onKeyDown
+        ( Json.Decode.map
+            (\k -> if k == "Escape" then GoBack else NoOp)
+            (Json.Decode.field "key" Json.Decode.string)
+        )
+    ]
 
 -- Main entry point
 main : Program String Model Msg
