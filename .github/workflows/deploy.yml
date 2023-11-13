@@ -1,0 +1,33 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master  # Set your default branch here
+permissions:
+  contents: write
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Elm
+      run: npm install -g elm
+
+    - name: Compile Elm Code
+      run: elm make src/Main.elm --output=build/app.js
+
+    - name: Move artifacts to build
+      run: |
+        mv index.html build/
+        mv style.css build/
+
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        branch: gh-pages  # Deploying to a branch named gh-pages
+        folder: build  # Folder to deploy, set to your build directory if different
+        token: ${{ secrets.GITHUB_TOKEN }}
