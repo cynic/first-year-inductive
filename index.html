@@ -10,11 +10,55 @@
 <body>
   <div id="myapp"></div>
   <script>
-    var flags = localStorage.getItem("state");
-    var app = Elm.Main.init({
+    let flags = localStorage.getItem("state");
+    let app = Elm.Main.init({
       node: document.getElementById('myapp'),
-      flags: flags
+      flags: flags ?? ""
     });
+    app.ports.saveToStorage.subscribe(function(state) {
+      localStorage.setItem("state", state);
+      console.log(JSON.parse(state));
+    });
+    app.ports.loadResult.subscribe(function(result) {
+      window.alert(result);
+    });
+    // Create a function loadFromUser which opens up a window to select a file
+    // The function should send the contents of the file to the Elm program
+    // using app.ports.loadFromUser.send(contents).
+    function loadFromUser() {
+      let input = document.createElement('input');
+      input.type = 'file';
+      input.onchange = e => {
+        let file = e.target.files[0];
+        let reader = new FileReader();
+        reader.readAsText(file,'UTF-8');
+        reader.onload = readerEvent => {
+          let content = readerEvent.target.result;
+          app.ports.loadFromUser.send(content);
+          // now we're done with it, remove it from the DOM
+          input.remove();
+        }
+      }
+      input.click();
+    }
+  // Create a function which takes the contents of localStorage and
+  // sends it out to be saved by the user as JSON.  The filename is
+  // "inductive-sciences-export-YYYY-MM-DD-HH-MM.json".
+  function _export() {
+    let data = localStorage.getItem("state");
+    let filename = "inductive-sciences-export-" + new Date().toISOString().slice(0,16) + ".json";
+    let blob = new Blob([data], {type: 'text/json'});
+    let elem = window.document.createElement('a');
+    elem.href = window.URL.createObjectURL(blob);
+    elem.download = filename;
+    document.body.appendChild(elem);
+    elem.click();
+    document.body.removeChild(elem);
+  }
   </script>
+  <div>
+    <button onclick="loadFromUser()">Import file</button>
+    <button onclick="_export()">Export file</button>
+  </div>
 </body>
 </html>

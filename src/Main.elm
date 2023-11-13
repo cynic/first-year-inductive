@@ -7,8 +7,10 @@ import String.Extra as String
 import List.Extra as List
 import DefaultData exposing (..)
 import DataTypes exposing (..)
-import Json.Decode as D
-import Json.Encode as E
+import Time
+import Task
+import LocalStorage exposing (save)
+import Platform.Sub as Sub
 
 -- Define the initial model
 initialModel : Model
@@ -108,6 +110,12 @@ inProblem model problemIdx f =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case Debug.log "MSG" (model.path, msg) of
+    (_, Load s) ->
+      case decodeModelFromString s of
+        Ok m ->
+          (m, LocalStorage.loadResult "Data-file loaded successfully")
+        Err _ ->
+          (model, LocalStorage.loadResult "This data-file is incorrect/corrupt and I couldn't load it.")
     ([], AddToPath component) ->
       ({ model | path = component :: model.path }, Cmd.none)
     ([], AddNewProblem problem) ->
@@ -124,13 +132,13 @@ update msg model =
     (ChooseSolutions :: _, AddToPath (EditSolution idx)) ->
       ({ model | path = EditSolution idx :: model.path }, Cmd.none)
     ([ExpandedFullModal _], GoBack) ->
-      ({ model | path = [] }, Cmd.none)
+      ({ model | path = [] }, save model)
     (ChooseSolutions :: prev, GoBack) ->
-      ({ model | path = prev }, Cmd.none)
+      ({ model | path = prev }, save model)
     (ChoosePrerequisites :: prev, GoBack) ->
-      ({ model | path = prev }, Cmd.none)
+      ({ model | path = prev }, save model)
     (EditProblem _ :: prev, GoBack) ->
-      ({ model | path = prev }, Cmd.none)
+      ({ model | path = prev }, save model)
     (EditProblem index :: _, StringInput Summary s) ->
       ( inProblem model index (\problem -> { problem | summary = s })
       , Cmd.none
@@ -144,7 +152,7 @@ update msg model =
       , Cmd.none
       )
     (EditSolution _ :: prev, GoBack) ->
-      ({ model | path = prev }, Cmd.none)
+      ({ model | path = prev }, save model)
     (EditSolution index :: _, StringInput Summary s) ->
       ( { model | solutions = List.updateAt index (\solution -> { solution | summary = s }) model.solutions }
       , Cmd.none
@@ -775,13 +783,15 @@ viewInteractive model =
 -- Define the Subscriptions function
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+  -- A subscription for updating the time every 15 seconds
+  LocalStorage.loadFromUser Load
 
 -- Main entry point
-main : Program () Model Msg
+main : Program String Model Msg
 main =
     Browser.element
-        { init = \_ -> (initialModel, Cmd.none)
+        { init = \s ->
+            (decodeModelFromString s |> Result.withDefault initialModel, Cmd.none)
         , view = view
         , update = update
         , subscriptions = subscriptions
