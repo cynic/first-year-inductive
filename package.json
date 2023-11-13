@@ -7,7 +7,7 @@
     "vite-plugin-elm": "^2.8.0"
   },
   "scripts": {
-    "dev": "vite & npx elm-watch hot",
+    "dev": "npx vite & npx elm-watch hot",
     "start": "npx concurrently \"npx serve\" \"npx elm-watch hot\""
   }
 }
