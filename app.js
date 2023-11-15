@@ -7682,6 +7682,28 @@ var $author$project$DataTypes$AddNewSolution = function (a) {
 var $author$project$DataTypes$SolutionId = function (a) {
 	return {$: 'SolutionId', a: a};
 };
+var $elm$core$Basics$negate = function (n) {
+	return -n;
+};
+var $author$project$Main$numProblemsAddressedBySolution = F2(
+	function (model, solutionIdx) {
+		return $elm$core$List$length(
+			A2(
+				$elm$core$List$filterMap,
+				function (_v0) {
+					var i = _v0.a;
+					var problem = _v0.b;
+					return A2($elm$core$List$member, solutionIdx, problem.solutions) ? $elm$core$Maybe$Just(i) : $elm$core$Maybe$Nothing;
+				},
+				A2(
+					$elm$core$List$indexedMap,
+					F2(
+						function (i, p) {
+							return _Utils_Tuple2(i, p);
+						}),
+					model.problems)));
+	});
+var $elm$core$List$sortBy = _List_sortBy;
 var $author$project$Main$viewChooseSolutions = F2(
 	function (model, _v0) {
 		var problemIdx = _v0.a;
@@ -7769,9 +7791,9 @@ var $author$project$Main$viewChooseSolutions = F2(
 						]),
 					A2(
 						$elm$core$List$map,
-						function (_v4) {
-							var id = _v4.a;
-							var solution = _v4.b;
+						function (_v5) {
+							var id = _v5.a;
+							var solution = _v5.b;
 							return A2(
 								$elm$html$Html$div,
 								_List_fromArray(
@@ -7812,7 +7834,10 @@ var $author$project$Main$viewChooseSolutions = F2(
 													]),
 												_List_fromArray(
 													[
-														$elm$html$Html$text(solution.summary)
+														$elm$html$Html$text(solution.summary),
+														$elm$html$Html$text(
+														' [' + ($elm$core$String$fromInt(
+															A2($author$project$Main$numProblemsAddressedBySolution, model, id)) + ']'))
 													])),
 												$elm_community$string_extra$String$Extra$isBlank(solution.detail) ? $elm$html$Html$text('') : A2(
 												$elm$html$Html$div,
@@ -7842,34 +7867,40 @@ var $author$project$Main$viewChooseSolutions = F2(
 									]));
 						},
 						A2(
-							$elm$core$List$filterMap,
-							function (_v2) {
-								var i = _v2.a;
-								var solution = _v2.b;
-								var _v3 = model.interactionData;
-								if (_v3.$ === 'Nothing') {
-									return $elm$core$Maybe$Just(
-										_Utils_Tuple2(i, solution));
-								} else {
-									var s = _v3.a.a;
-									return $elm_community$string_extra$String$Extra$isBlank(s) ? $elm$core$Maybe$Just(
-										_Utils_Tuple2(i, solution)) : ((A2(
-										$elm$core$String$contains,
-										$elm$core$String$toLower(s),
-										$elm$core$String$toLower(solution.summary)) || A2(
-										$elm$core$String$contains,
-										$elm$core$String$toLower(s),
-										$elm$core$String$toLower(solution.detail))) ? $elm$core$Maybe$Just(
-										_Utils_Tuple2(i, solution)) : $elm$core$Maybe$Nothing);
-								}
+							$elm$core$List$sortBy,
+							function (_v4) {
+								var i = _v4.a;
+								return -A2($author$project$Main$numProblemsAddressedBySolution, model, i);
 							},
 							A2(
-								$elm$core$List$indexedMap,
-								F2(
-									function (i, s) {
-										return _Utils_Tuple2(i, s);
-									}),
-								model.solutions)))),
+								$elm$core$List$filterMap,
+								function (_v2) {
+									var i = _v2.a;
+									var solution = _v2.b;
+									var _v3 = model.interactionData;
+									if (_v3.$ === 'Nothing') {
+										return $elm$core$Maybe$Just(
+											_Utils_Tuple2(i, solution));
+									} else {
+										var s = _v3.a.a;
+										return $elm_community$string_extra$String$Extra$isBlank(s) ? $elm$core$Maybe$Just(
+											_Utils_Tuple2(i, solution)) : ((A2(
+											$elm$core$String$contains,
+											$elm$core$String$toLower(s),
+											$elm$core$String$toLower(solution.summary)) || A2(
+											$elm$core$String$contains,
+											$elm$core$String$toLower(s),
+											$elm$core$String$toLower(solution.detail))) ? $elm$core$Maybe$Just(
+											_Utils_Tuple2(i, solution)) : $elm$core$Maybe$Nothing);
+									}
+								},
+								A2(
+									$elm$core$List$indexedMap,
+									F2(
+										function (i, s) {
+											return _Utils_Tuple2(i, s);
+										}),
+									model.solutions))))),
 					A2(
 					$elm$html$Html$div,
 					_List_fromArray(
