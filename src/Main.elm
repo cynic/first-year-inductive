@@ -572,6 +572,18 @@ viewChoosePrerequisites model (problemIdx, problem) =
       )
     ]
 
+-- Get the number of problems that are addressed by this solution
+numProblemsAddressedBySolution : Model -> Int -> Int
+numProblemsAddressedBySolution model solutionIdx =
+  List.indexedMap (\i p -> (i, p)) model.problems
+  |> List.filterMap
+    (\(i, problem) ->
+      if List.member solutionIdx problem.solutions then
+        Just i
+      else
+        Nothing
+    )
+  |> List.length
 
 viewChooseSolutions : Model -> (Int, Problem) -> Html Msg
 viewChooseSolutions model (problemIdx, problem) =
@@ -630,6 +642,7 @@ viewChooseSolutions model (problemIdx, problem) =
                   else
                     Nothing
           )
+        |> List.sortBy (\(i, _) -> -(numProblemsAddressedBySolution model i))
         |> List.map
             (\(id, solution) ->
               div
@@ -652,7 +665,9 @@ viewChooseSolutions model (problemIdx, problem) =
                     [ div
                         [ class "solution-text"
                         ]
-                        [ text solution.summary ]
+                        [ text solution.summary
+                        , text (" [" ++ String.fromInt (numProblemsAddressedBySolution model id) ++ "]")
+                        ]
                     , if String.isBlank solution.detail then
                         text ""
                       else 
